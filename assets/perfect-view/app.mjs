@@ -1,11 +1,13 @@
+import {createId} from './ids.mjs?v=20261104';
+import {canUseStudy} from './access.mjs?v=20261104';
 import {createIndicatorPicker} from './indicator-picker.mjs?v=private-20261021-main-1';
 import {createStudyContext,studyRequirements} from './study-context.mjs?v=private-20261021-main-1';
 import { aggregateBars, createDemoBars, indicators, parseDataset, validateDrawing, validateStudies, TIMEFRAMES, MAX_BARS } from './core.mjs?v=private-20261021-main-1';
-import { PerfectViewChart } from './chart.mjs?v=private-20261021-main-1';
+import { PerfectViewChart } from './chart.mjs?v=site-20261104';
 import { config } from './config.mjs?v=private-20261021-main-1';
 import { registerCustomIndicators } from './custom-indicators.mjs?v=private-20261021-main-1';
 registerCustomIndicators(indicators);
-import { Account, showMembershipGate } from './account.mjs?v=private-20261021-main-1';
+import { Account } from './account.mjs?v=private-20261021-main-1';
 import { validateLayout } from './layouts.mjs?v=private-20261021-main-1';
 import { CdnFeed, nextCdnCheck,archiveBase } from './cdn.mjs?v=private-20261021-main-1';
 import {parseFeedResponse} from './feed.mjs?v=private-20261021-main-1';
@@ -57,7 +59,7 @@ async function historyNeeds(timeframe,signal){
  const selected=studies.map(study=>({...study}));
  const local=selected.filter(study=>!indicators.definitions.get(study.id)?.remote);
  const needs=studyRequirements(local,indicators,timeframe);
- const privateStudies=selected.filter(study=>study.enabled!==false&&indicators.definitions.get(study.id)?.remote);
+ const privateStudies=selected.filter(study=>study.enabled!==false&&indicators.definitions.get(study.id)?.remote&&canUseStudy(indicators.definitions.get(study.id),config,account));
  if(privateStudies.length){
   const requirements=await remoteStudies.historyRequirements(privateStudies,timeframe,{signal});
   for(const req of requirements)needs.set(req.timeframe,Math.max(needs.get(req.timeframe)??40,Math.min(100000,req.bars+40)));
@@ -299,6 +301,7 @@ function calculateStudies() {
   const completed=displayedBars(true);
   for(const study of studies){
     if(study.enabled===false)continue;
+    if(!canUseStudy(indicators.definitions.get(study.id),config,account))continue;
     if(indicators.definitions.get(study.id)?.remote){remote.push({...study});const previous=remoteModels.get(study.key);const identity=JSON.stringify([kind,dataset?.symbol,preferences.timeframe,study]);if(previous?.identity===identity)models.push(previous.model);continue;}
     try{models.push({...indicators.calculate(study.id,completed,study,studyContext(completed)),id:study.id,key:study.key,title:itemName(study,'study')});}
     catch{announce('An indicator could not be calculated. Remove it and try again.');}
@@ -329,7 +332,7 @@ function updateStudyValues(readout){
     const model=byKey.get(element.dataset.studyValues),values=model?.values??[];
     const formatted=values.map(v=>(values.length>1?v.name+' ':'')+v.text);
     const study=studies.find(study=>study.key===element.dataset.studyValues),pending=study&&study.enabled!==false&&indicators.definitions.get(study.id)?.remote;
-    element.textContent=model?(values.length?formatted.slice(0,6).join(' · ')+(values.length>6?' · +'+(values.length-6)+' values':''):'No visible components'):pending?'Loading…':'Hidden';
+    element.textContent=model?(values.length?formatted.slice(0,6).join(' · ')+(values.length>6?' · +'+(values.length-6)+' values':''):'No visible components'):pending?(canUseStudy(indicators.definitions.get(study.id),config,account)?'Loading…':'Member access required'):'Hidden';
     element.title=(readout.latest?'Latest closed candle':'Cursor candle')+' · '+formatted.join(' · ');
   });
 }
@@ -467,7 +470,7 @@ function renderConversionStatus(){
 }
 async function refreshConversion(){
   renderConversionStatus();
-  if(!dataset||!needsConversion()||!(riskSession.balance>0)||kind==='demo'||!config.feedUrl||document.hidden||(config.requireMembership&&!account.access.perfectView)){renderRiskReadout();return;}
+  if(!dataset||!needsConversion()||!(riskSession.balance>0)||kind==='demo'||!config.feedUrl||document.hidden){renderRiskReadout();return;}
   const p=currentRiskProfile(),from=p.profitCurrency,to=riskSession.currency,key=from+':'+to;
   try{await cdn.conversionRate(from,to,{refresh:true,signal:AbortSignal.timeout(8000)});fxErrors.delete(key);}
   catch(error){fxErrors.set(key,error.message);}
@@ -475,7 +478,7 @@ async function refreshConversion(){
 }
 function scheduleFx(){
   clearTimeout(fxTimer);
-  if(!dataset||kind==='demo'||!config.feedUrl||document.hidden||!needsConversion()||!(riskSession.balance>0)||(config.requireMembership&&!account.access.perfectView))return;
+  if(!dataset||kind==='demo'||!config.feedUrl||document.hidden||!needsConversion()||!(riskSession.balance>0))return;
   fxTimer=setTimeout(async()=>{await refreshConversion();scheduleFx();},60000);
 }
 function renderRiskForm() {
@@ -700,7 +703,7 @@ function indicatorInputs(study = null) {
 function openIndicator(study = null) {
   if (!study && studies.length >= 12) { announce('Up to twelve indicators can be saved in a layout.'); return; }
   editingStudy = study;
-  $('indicator-type').replaceChildren(...[...indicators.definitions.values()].map(d => {const o = document.createElement('option'); o.value = d.id; o.textContent = d.name; return o;}));
+  $('indicator-type').replaceChildren(...[...indicators.definitions.values()].map(d => {const o = document.createElement('option'); o.value = d.id; o.textContent = d.name+(d.remote?' · Member':''); return o;}));
   $('indicator-type').value = study?.id ?? 'ema'; $('indicator-type').disabled = !!study; indicatorPicker.refresh();
   $('indicator-heading').textContent = study ? 'Indicator settings' : 'Add an indicator';
   indicatorInputs(study); $('indicator-dialog').showModal();
@@ -708,7 +711,9 @@ function openIndicator(study = null) {
 $('add-indicator').addEventListener('click', () => openIndicator());
 $('indicator-type').addEventListener('change', () => indicatorInputs());
 $('indicator-form').addEventListener('submit', event => {
-  event.preventDefault(); const raw = {id: $('indicator-type').value, key: editingStudy?.key ?? crypto.randomUUID(),
+  event.preventDefault();
+  if(!canUseStudy(indicators.definitions.get($('indicator-type').value),config,account)){announce('This is a Perfect Entry member indicator. Sign in with the Whop account linked to your membership. Charts and standard studies stay free.');return;}
+  const raw = {id: $('indicator-type').value, key: editingStudy?.key ?? createId(),
     color: $('ema-color').value, name: editingStudy?.name ?? '', enabled: editingStudy?.enabled ?? true};
   for (const input of $('indicator-inputs').querySelectorAll('[data-setting]')) raw[input.dataset.setting] = input.type === 'checkbox' ? input.checked : ['select','color'].includes(input.dataset.valueType) ? input.value : Number(input.value);
   const validated = validateStudies([raw])[0];
@@ -795,7 +800,7 @@ $('delete-layout').addEventListener('click', async () => {
 $('layout-form').addEventListener('submit', async event => {
   event.preventDefault(); const button = $('save-layout-confirm'); button.disabled = true;
   try {
-    const copy = $('layout-save-copy').checked, id = copy || !activeLayoutId ? crypto.randomUUID() : activeLayoutId;
+    const copy = $('layout-save-copy').checked, id = copy || !activeLayoutId ? createId() : activeLayoutId;
     const result = await account.request('/layouts/' + id, {method:'PUT',headers:{'If-Match':String(copy || !activeLayoutId ? 0 : activeLayoutRevision)},body:JSON.stringify(layoutDocument($('layout-name').value))});
     activeLayoutId = id; activeLayoutRevision = result.revision; await listLayouts(); $('layout-dialog').close(); announce('Layout saved to your Whop account.');
   } catch(e) { announce(e.message); } finally { button.disabled = false; }
@@ -817,13 +822,12 @@ async function initializeAccount() {
     await account.initialize(); $('login').hidden = false; $('login').href = '#';
     $('login').textContent = account.user ? account.user.name + ' · Sign out' : 'Sign in with Whop';
     $('login').addEventListener('click', async event => {event.preventDefault();if(account.user){await account.signOut();location.reload();}else await account.signIn();});
-    if (config.requireMembership && !showMembershipGate(account,'perfectView')) return false;
     if (account.access.perfectView) {
       // Definitions contain settings metadata; formulas are never downloaded.
       $('layout-picker').hidden = false; try { await listLayouts(); } catch(error) { announce(error.message); }
     }
     return true;
-  } catch(e) {announce(e.message);if(config.requireMembership) {showMembershipGate(account,'perfectView');return false;}return true;}
+  } catch(e) {announce(e.message+' Free charts and standard indicators are still available.');return true;}
 }
 
 async function initialize() {
@@ -856,8 +860,8 @@ if (await initializeAccount()) {
   await clearLegacyPersonalPack();
   await initialize();
   if (config.requireMembership && config.accountApiUrl) {const membershipTimer = setInterval(async () => {
-    if(document.hidden)return;
-    try{const profile=await account.request('/me');account.user=profile.user;account.access=profile.access;if(!profile.access.perfectView){clearInterval(membershipTimer);save();pauseFeed();showMembershipGate(account,'perfectView');}}
-    catch(error){if(error.status===401||error.status===403){clearInterval(membershipTimer);save();pauseFeed();account.user=null;account.access={};showMembershipGate(account,'perfectView');}}
+    if(document.hidden||!account.token)return;
+    try{const profile=await account.request('/me');account.user=profile.user;account.access=profile.access;if(!profile.access.perfectView){remoteModels.clear();calculateStudies();renderStudies();announce('Member indicators are unavailable for this account. Free charts and standard studies remain available.');}}
+    catch(error){if(error.status===401||error.status===403){account.user=null;account.access={};account.token=null;remoteModels.clear();calculateStudies();renderStudies();announce('Your member session expired. Free charts and standard studies remain available.');}}
   },300000);}
 }

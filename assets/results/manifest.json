@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "revision": "428bf825ae71ea5a",
+  "images": [
+    {
+      "src": "assets/results/t1.jpeg",
+      "alt": "Community result 1. Open full image."
+    },
+    {
+      "src": "assets/results/t2.png",
+      "alt": "Community result 2. Open full image."
+    },
+    {
+      "src": "assets/results/t3.png",
+      "alt": "Community result 3. Open full image."
+    },
+    {
+      "src": "assets/results/t4.png",
+      "alt": "Community result 4. Open full image."
+    },
+    {
+      "src": "assets/results/t5.png",
+      "alt": "Community result 5. Open full image."
+    },
+    {
+      "src": "assets/results/t6.png",
+      "alt": "Community result 6. Open full image."
+    },
+    {
+      "src": "assets/results/t7.png",
+      "alt": "Community result 7. Open full image."
+    },
+    {
+      "src": "assets/results/t8.png",
+      "alt": "Community result 8. Open full image."
+    },
+    {
+      "src": "assets/results/t9.png",
+      "alt": "Community result 9. Open full image."
+    },
+    {
+      "src": "assets/results/t10.png",
+      "alt": "Community result 10. Open full image."
+    }
+  ]
+}
