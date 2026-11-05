@@ -20,3 +20,8 @@ Perfect Entry provides charting software, educational tools and research. Tradin
 ## Membership
 Perfect Entry indicators, signal access, education and community are membership features. Current pricing, billing terms and exact inclusions are published on Whop: https://whop.com/perfect-entry/perfect-entry/
 Free charts and standard studies do not require a paid membership. Whop sign-in is activated through the configured account service; do not describe an unconfigured sign-in as available.
+
+## Learning guides
+
+- [Trading guides](https://perfectentry.store/learn/): Free educational guides with worked examples, source links and product walkthroughs.
+- [About Taylor Bright](https://perfectentry.store/learn/taylor-bright/): Founder and author information.

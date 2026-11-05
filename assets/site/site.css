@@ -25,3 +25,5 @@ body.pe-article{background:#f1eee8;color:#1b1d24;--bg:#f1eee8;--bg2:#e9e5df;--bg
 .pe-brand-logo{display:block;width:220px;height:76px;object-fit:cover;object-position:center;mix-blend-mode:screen;max-width:none}
 .pe-footer .pe-brand-logo{width:220px;height:90px}
 @media(max-width:600px){.pe-brand-logo{width:170px;height:64px}.pe-footer .pe-brand-logo{width:200px;height:82px}}
+
+@media(min-width:901px) and (max-width:1150px){.pe-header .pe-brand-logo{width:180px}.pe-links{gap:16px}.pe-header .pe-nav{gap:16px}}
