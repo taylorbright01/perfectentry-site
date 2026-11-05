@@ -1,3 +1,4 @@
+import {createId} from './ids.mjs?v=20261104';
 import {drawStudyLine,drawStudyFills} from './study-render.mjs?v=private-20261021-main-1';
 // Original Canvas 2D renderer, authored for Perfect Entry.
 // Drawings are anchored to market timestamps and prices, never screen pixels.
@@ -491,7 +492,7 @@ export class PerfectViewChart extends EventTarget {
   }
   addDrawing(d) {
     if (this.drawings.length >= 300) { this.emit('limit'); return; }
-    const drawing = { ...d, id: crypto.randomUUID(), color: d.color ?? this.drawingColor, name: d.name ?? '', text: d.text ?? '' };
+    const drawing = { ...d, id: createId(), color: d.color ?? this.drawingColor, name: d.name ?? '', text: d.text ?? '' };
     if(d.type==='fib')drawing.fib=structuredClone(d.fib??this.fibSettings);
     this.drawings.push(drawing); this.selected = drawing.id; this.requestDraw(); this.emit('drawings'); this.emit('selection', { id: drawing.id });
   }
